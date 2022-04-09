@@ -14,6 +14,12 @@ import torchvision.transforms.functional as TF
 import PIL.Image as Image
 
 
+
+def unnormalize(imgs):
+    return imgs * torch.Tensor([0.0275, 0.0283, 0.0341]).reshape(1, -1, 1, 1) + \
+           torch.Tensor([0.4923, 0.5178, 0.4658]).reshape(1, -1, 1, 1)
+
+
 def scale_image_tensor(img):
     return img * 2.0 - 1.0
 

@@ -47,14 +47,14 @@ class DiffusionModel(pl.LightningModule):
         self.log(f"{phase}_loss", loss)
         if batch_idx % 10 == 0:
             self.logger.experiment.add_image("input_images",
-                                             torchvision.utils.make_grid(utils.unscale_image_tensor(x)))
+                                             torchvision.utils.make_grid(utils.unnormalize(x)))
             self.logger.experiment.add_image("sampled_images",
-                                             torchvision.utils.make_grid(utils.unscale_image_tensor(x_t)))
+                                             torchvision.utils.make_grid(utils.unnormalize(x_t)))
             self.logger.experiment.add_image("predicted_noise",
-                                             torchvision.utils.make_grid(utils.unscale_image_tensor(predicted_epsilon)))
+                                             torchvision.utils.make_grid(utils.unnormalize(predicted_epsilon)))
             self.logger.experiment.add_image("recovered_images",
                                              torchvision.utils.make_grid(
-                                                 utils.unscale_image_tensor(
+                                                 utils.unnormalize(
                                                      self.remove_noise(x_t, ts, predicted_epsilon))))
         return loss
 
@@ -100,12 +100,12 @@ class DiffusionModel(pl.LightningModule):
 
                 if self.logger is not None:
                     self.logger.experiment.add_image("generated_progression",
-                                                     torchvision.utils.make_grid(utils.unscale_image_tensor(mu)),
+                                                     torchvision.utils.make_grid(utils.unnormalize(mu)),
                                                      self.max_time_steps - t)
                 if plot:
                     if t % 10 == 0:
                         plt.imshow(torchvision.utils.make_grid(
-                            utils.unscale_image_tensor(mu)
+                            utils.unnormalize(mu)
                         ).permute(1, 2, 0).cpu().numpy())
                         plt.show(block=False)
                         plt.pause(0.001)

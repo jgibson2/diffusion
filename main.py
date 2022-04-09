@@ -28,7 +28,7 @@ def sample(path):
     model = model.to(dev)
 
     imgs = model.sample(batch_size, plot=True).detach().cpu()
-    grid = torchvision.utils.make_grid(utils.unscale_image_tensor(imgs))
+    grid = torchvision.utils.make_grid(utils.unnormalize(imgs))
     plt.imshow(grid.permute(1, 2, 0).numpy())
     plt.show()
 
@@ -50,7 +50,7 @@ def main():
         utils.ResizedCrop(image_size[1:]),
         TF.RandomHorizontalFlip(p=0.5),
         TF.ToTensor(),
-        TF.Lambda(utils.scale_image_tensor),
+        TF.Normalize(torch.Tensor([0.4923, 0.5178, 0.4658]), torch.Tensor([0.0275, 0.0283, 0.0341]), inplace=True),
     ))
     train_dataset = torchvision.datasets.ImageFolder("./data/birds/train", transform=transform)
     val_dataset = torchvision.datasets.ImageFolder("./data/birds/val", transform=transform)
@@ -86,11 +86,12 @@ def main():
         callbacks=[pl.callbacks.EarlyStopping(monitor="validation_loss", mode="min", patience=5)],
         enable_checkpointing=True,
         min_epochs=10,
+        log_every_n_steps=1
     )
 
     trainer.fit(model, train_dataloaders=train_dataloader, val_dataloaders=val_dataloader)
 
 
 if __name__ == '__main__':
-    # main()
-    sample("lightning_logs/version_38/checkpoints/epoch=22-step=13362.ckpt")
+    main()
+    # sample("lightning_logs/version_38/checkpoints/epoch=22-step=13362.ckpt")
