@@ -16,8 +16,8 @@ import PIL.Image as Image
 
 
 def unnormalize(imgs):
-    return imgs * torch.Tensor([0.0275, 0.0283, 0.0341]).reshape(1, -1, 1, 1).to(imgs.device) + \
-           torch.Tensor([0.4923, 0.5178, 0.4658]).reshape(1, -1, 1, 1).to(imgs.device)
+    return torch.clamp(imgs * torch.Tensor([0.0275, 0.0283, 0.0341]).reshape(1, -1, 1, 1).to(imgs.device) + \
+           torch.Tensor([0.4923, 0.5178, 0.4658]).reshape(1, -1, 1, 1).to(imgs.device), 0.0, 1.0)
 
 
 def scale_image_tensor(img):
