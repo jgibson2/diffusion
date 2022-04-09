@@ -1,0 +1,15 @@
+name: diffusion
+channels:
+  - conda-forge
+  - pytorch
+dependencies:
+  - python=3.8
+  - pytorch=1.10
+  - torchvision
+  - cudatoolkit=11.3
+  - pytorch-lightning
+  - matplotlib
+  - click
+  - numpy
+  - scipy
+  - tensorboard=2.8
