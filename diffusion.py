@@ -93,7 +93,8 @@ class DiffusionModel(pl.LightningModule):
     def sample(self, n, plot=False, plot_interval=10):
         with torch.no_grad():
             x = torch.clamp(torch.randn((n, *self.image_shape), dtype=torch.float, device=self.device), min=-1.0, max=1.0)
-            for t in tqdm.trange(self.max_time_steps - 1, -1, -1):
+            # we start at the last timestep, so -2 instead of -1
+            for t in tqdm.trange(self.max_time_steps - 2, -1, -1):
                 ts = t * torch.ones((n,), device=self.device).long()
                 ts_embedding = utils.timestep_embedding(ts, self.time_enc_dim)
                 pred_eps, pred_v = self.model(x, emb=ts_embedding)

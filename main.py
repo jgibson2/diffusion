@@ -75,7 +75,7 @@ def progression(path):
         imgs.append(x_ts)
     with torch.no_grad():
         x = utils.scale_image_tensor(imgs[-1]).float().to(dev)
-        for t in tqdm.trange(steps - 1, -1, -1):
+        for t in tqdm.trange(steps - 2, -1, -1):
             ts = t * torch.ones((b,), device=dev).long()
             ts_embedding = utils.timestep_embedding(ts, time_enc_dim)
             pred_eps, pred_v = model.model(x.float(), emb=ts_embedding)
