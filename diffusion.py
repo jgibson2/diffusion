@@ -45,7 +45,6 @@ class DiffusionModel(pl.LightningModule):
         # don't choose 0 to simplify loss calcs (KL-divergence)
         ts = torch.randint(1, self.max_time_steps, (b,), device=self.device)
         x_t, epsilon, sigma = self.add_noise(x, ts)
-        x_t = torch.clamp(x_t, min=-1.0, max=1.0).float()
         ts_embedding = utils.timestep_embedding(ts, self.time_enc_dim)
         predicted_epsilon, predicted_v = self.model(x_t, emb=ts_embedding)
         loss = self.compute_losses(x, ts, x_t, epsilon, predicted_epsilon, predicted_v)
@@ -79,6 +78,7 @@ class DiffusionModel(pl.LightningModule):
         alpha_bar = expand(self.alpha_bars[ts], 4)
         sigma = torch.sqrt(1.0 - alpha_bar)
         x_t = (torch.sqrt(alpha_bar) * x_0) + (sigma * epsilon)
+        x_t = torch.clamp(x_t, min=-1.0, max=1.0).float()
         return x_t, epsilon, sigma
 
     def remove_noise(self, x_t, ts, epsilon):
@@ -104,11 +104,12 @@ class DiffusionModel(pl.LightningModule):
                 sigma = expand(self.compute_sigmas(ts, pred_v), 4)
                 x = torch.clamp(mu + (sigma * z), min=-1.0, max=1.0).float()
                 if self.logger is not None:
-                    self.logger.experiment.add_image("generated_progression",
-                                                     torchvision.utils.make_grid(
-                                                         utils.unscale_image_tensor(x)
-                                                     ),
-                                                     self.max_time_steps - t)
+                    if t % plot_interval == 0:
+                        self.logger.experiment.add_image("generated_progression",
+                                                         torchvision.utils.make_grid(
+                                                             utils.unscale_image_tensor(x)
+                                                         ),
+                                                         self.max_time_steps - t)
                 if plot:
                     if t % plot_interval == 0:
                         plt.clf()
