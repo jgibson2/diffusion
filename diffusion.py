@@ -27,6 +27,7 @@ class DiffusionModel(pl.LightningModule):
         self.max_time_steps = self.betas.shape[0]
         self.ema = utils.ExponentialMovingAverage(self.parameters(), decay=0.9999)
         self.time_enc_dim = kwargs.get("time_enc_dim", 5)
+        self.dynamic_threshold = kwargs.get("dynamic_threshold", 0.99)
 
     def training_step(self, train_batch, batch_idx):
         return self.step(train_batch, batch_idx, "training")
@@ -39,7 +40,7 @@ class DiffusionModel(pl.LightningModule):
         grid = torchvision.utils.make_grid(sampled_imgs)
         self.logger.experiment.add_image('generated_images', grid)
 
-    def step(self, batch, batch_idx, phase, image_interval=100):
+    def step(self, batch, batch_idx, phase, image_interval=1000):
         x, _ = batch
         b, c, h, w = x.shape
         # don't choose 0 to simplify loss calcs (KL-divergence)
@@ -51,15 +52,19 @@ class DiffusionModel(pl.LightningModule):
         self.log(f"{phase}_loss", loss)
         if batch_idx % image_interval == 0:
             self.logger.experiment.add_image("input_images",
-                                             torchvision.utils.make_grid(utils.unscale_image_tensor(x)))
+                                             torchvision.utils.make_grid(utils.unscale_image_tensor(x)),
+                                             0)
             self.logger.experiment.add_image("sampled_images",
-                                             torchvision.utils.make_grid(utils.unscale_image_tensor(x_t)))
+                                             torchvision.utils.make_grid(utils.unscale_image_tensor(x_t)),
+                                             0)
             self.logger.experiment.add_image("predicted_noise",
-                                             torchvision.utils.make_grid(utils.unscale_image_tensor(predicted_epsilon)))
+                                             torchvision.utils.make_grid(utils.unscale_image_tensor(predicted_epsilon)),
+                                             0)
             self.logger.experiment.add_image("recovered_images",
                                              torchvision.utils.make_grid(
                                                  utils.unscale_image_tensor(
-                                                     self.remove_noise(x_t, ts, predicted_epsilon))))
+                                                     self.remove_noise(x_t, ts, predicted_epsilon))),
+                                             0)
         return loss
 
     def configure_optimizers(self):
@@ -78,7 +83,7 @@ class DiffusionModel(pl.LightningModule):
         alpha_bar = expand(self.alpha_bars[ts], 4)
         sigma = torch.sqrt(1.0 - alpha_bar)
         x_t = (torch.sqrt(alpha_bar) * x_0) + (sigma * epsilon)
-        x_t = torch.clamp(x_t, min=-1.0, max=1.0).float()
+        x_t = utils.dynamic_threshold(x_t, self.dynamic_threshold).float()
         return x_t, epsilon, sigma
 
     def remove_noise(self, x_t, ts, epsilon):
@@ -93,8 +98,7 @@ class DiffusionModel(pl.LightningModule):
     def sample(self, n, plot=False, plot_interval=10):
         with torch.no_grad():
             x = torch.clamp(torch.randn((n, *self.image_shape), dtype=torch.float, device=self.device), min=-1.0, max=1.0)
-            # we start at the last timestep, so -2 instead of -1
-            for t in tqdm.trange(self.max_time_steps - 2, -1, -1):
+            for t in tqdm.trange(self.max_time_steps - 1, -1, -1):
                 ts = t * torch.ones((n,), device=self.device).long()
                 ts_embedding = utils.timestep_embedding(ts, self.time_enc_dim)
                 pred_eps, pred_v = self.model(x, emb=ts_embedding)
@@ -102,7 +106,7 @@ class DiffusionModel(pl.LightningModule):
                 z = torch.randn((n, *self.image_shape), device=self.device) if t > 0 else torch.zeros(
                     (n, *self.image_shape), device=self.device)
                 sigma = expand(self.compute_sigmas(ts, pred_v), 4)
-                x = torch.clamp(mu + (sigma * z), min=-1.0, max=1.0).float()
+                x = utils.dynamic_threshold(mu + (sigma * z), self.dynamic_threshold).float()
                 if self.logger is not None:
                     if t % plot_interval == 0:
                         self.logger.experiment.add_image("generated_progression",
@@ -116,6 +120,7 @@ class DiffusionModel(pl.LightningModule):
                         plt.imshow(torchvision.utils.make_grid(
                             utils.unscale_image_tensor(x)
                         ).permute(1, 2, 0).cpu().numpy())
+                        plt.axis("off")
                         plt.show(block=False)
                         plt.pause(0.001)
             return x

@@ -15,6 +15,11 @@ import PIL.Image as Image
 import einops
 
 
+def dynamic_threshold(batch: torch.Tensor, p: float) -> torch.Tensor:
+    s = torch.quantile(batch, p, dim=0)
+    return torch.clamp(batch, min=-s, max=s) / s
+
+
 def get_dataset_mean(dataloader):
     n = len(dataloader.dataset)
     mean = None
