@@ -36,6 +36,7 @@ def sample(path):
     model = DiffusionModel(unet, betas, image_size, time_enc_dim=time_enc_dim)
     model.load_state_dict(state["state_dict"])
     model = model.to(dev)
+    model.eval()
 
     imgs = model.sample(batch_size, plot=True, plot_interval=10).detach().cpu()
     grid = torchvision.utils.make_grid(utils.unscale_image_tensor(imgs))
@@ -52,6 +53,7 @@ def progression(path):
     model = DiffusionModel(unet, betas, image_size, time_enc_dim=time_enc_dim)
     model.load_state_dict(state["state_dict"])
     model = model.to(dev)
+    model.eval()
 
     train_dataset = torchvision.datasets.ImageFolder("./data/celeba/train", transform=transform)
     train_dataloader = torch.utils.data.DataLoader(
@@ -128,13 +130,13 @@ def main(checkpoint):
     trainer = pl.Trainer(
         gpus=1,
         logger=True,
-        callbacks=[pl.callbacks.EarlyStopping(monitor="validation_loss", mode="min", patience=3)],
+        callbacks=[pl.callbacks.EarlyStopping(monitor="validation/loss", mode="min", patience=3)],
         enable_checkpointing=True,
-        min_epochs=10,
+        min_epochs=20,
     )
 
     trainer.fit(model, train_dataloaders=train_dataloader, val_dataloaders=val_dataloader)
-
+    # trainer.fit(model, train_dataloaders=train_dataloader)
 
 if __name__ == '__main__':
     main()

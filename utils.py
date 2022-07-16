@@ -16,8 +16,14 @@ import einops
 
 
 def dynamic_threshold(batch: torch.Tensor, p: float) -> torch.Tensor:
-    s = torch.quantile(batch, p, dim=0)
-    return torch.clamp(batch, min=-s, max=s) / s
+    s = torch.quantile(torch.abs(batch), p, dim=0)
+    r = torch.clamp(batch, min=-s, max=s) / s
+    return r.type(batch.dtype)
+
+
+def static_threshold(batch: torch.Tensor) -> torch.Tensor:
+    r = torch.clamp(batch, min=-1.0, max=1.0)
+    return r.type(batch.dtype)
 
 
 def get_dataset_mean(dataloader):
